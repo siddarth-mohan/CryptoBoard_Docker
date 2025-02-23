@@ -1,0 +1,82 @@
+#version: '3.8'
+
+services:
+
+  scrapper_service:
+    container_name: scrapper-svc
+    build:
+      context: ./scrapperService
+      dockerfile: Dockerfile
+    env_file:
+      - ./scrapperService/.env
+    networks:
+      - app-network
+    depends_on:
+      - growth_service
+
+  growth_service:
+    container_name: growth-svc
+    build:
+      context: ./growthProcessingService
+      dockerfile: Dockerfile
+    environment:
+      - MONGO_URI=mongodb://root:rootpassword@mongo:27017/growthdb?authSource=admin
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+    depends_on:
+      - mongo
+
+  frontend_app:
+    container_name: frontend-app
+    build:
+      context: ./Frontend/cryptoboard
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    networks:
+      - app-network
+    depends_on:
+      - api_service
+
+  api_service:
+    container_name: api-server
+    build:
+      context: ./apiServerService
+      dockerfile: Dockerfile
+    environment:
+      - MONGO_URI=mongodb://root:rootpassword@mongo:27017/growthdb?authSource=admin
+      - PORT=3001
+    ports:
+      - "3001:3001"
+    networks:
+      - app-network
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:latest
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+    networks:
+      - app-network
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+
